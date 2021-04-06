@@ -13,3 +13,6 @@ Jetson Xavier NX with Waco Giken CAN-Bus Driver Board
 * __v1.0__(2021/3/3)
  - First release
  
+* __v1.1__(2021/4/5)
+ - Fixed single packet request
+ 

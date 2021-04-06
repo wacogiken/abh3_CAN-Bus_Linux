@@ -40,6 +40,10 @@
 @date           2021.02.26
 @author         T.Furusawa
 @note           ・初版
+
+@date           2021.04.05
+@author         T.Furusawa
+@note           ・V1.1 シングルパケットのリクエストを修正
 ******************************************************************************/
 
 /******************************************************************************
@@ -601,22 +605,35 @@ int abh3_can_reqBRD(CAN_ABH3 *abh3Ptr, int num, CAN_ABH3_DATA *ptr)
 @param[in]      num         番号(0x00～0x01)
 @param[in]      ptr         戻り値の構造体へのポインタ
 @return                     エラー状態（0：正常、0以外：異常）
+@date                       2021.04.05
+@note                       送信PGNを修正
+@note                       受信idを修正
 */
 int abh3_can_reqSNG(CAN_ABH3 *abh3Ptr, int num, CAN_ABH3_DATA *ptr)
 {
   int err;
   char buf[3] = {0x00, 0x00, 0x00};
+  long id;
 
   // リクエストの送受信
-  buf[0] = num;
   buf[1] = abh3Ptr->pgn;
+  buf[2] = num;
   
   err = can_send(abh3Ptr, abh3Ptr->id.broadReqSend, buf, 3);
   if (err) {
     return err;
   }
 
-  err = can_recv(abh3Ptr, abh3Ptr->id.broadBaseRecv + DESTINATION(num), ptr, 0);
+  switch(num) {
+  case 0x01:
+    id = abh3Ptr->id.singleDP1Recv;
+    break;
+  case 0x00:
+  default:
+    id = abh3Ptr->id.singleDP0Recv;
+    break;
+  }
+  err = can_recv(abh3Ptr, id, ptr, 0);
 
   return err;
 }
