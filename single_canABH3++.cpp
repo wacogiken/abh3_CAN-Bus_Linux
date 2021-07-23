@@ -33,7 +33,7 @@
  ******************************************************************************/
 
 /*!****************************************************************************
-@file           single_canABH3.c
+@file           test_canABH3.c
 *******************************************************************************
 @brief          ABH3用CAN サンプルソフト(アプリケーション)
 *******************************************************************************
@@ -52,87 +52,73 @@
 #include <unistd.h>
 #include <math.h>
 
-#include "canABH3.h"
+#include "canABH3++.hpp"
 
 #include <time.h>
 #include <sys/time.h>
-#include <string.h>
 
-  struct timespec req1;
+struct timespec req1;
 
 /******************************************************************************
   アプリケーション・メイン
 ******************************************************************************/
-CAN_ABH3 canABH3;
-CAN_ABH3_DATA canData;
+// CAN_ABH3 canABH3;
+// CAN_ABH3_DATA canData;
 
 int main(int argc, char *argv[])
 {
-  int i, j, err=1;
+  int i, j, err;
   float f;
+
+  canABH3 abh3;
 
   // 初期化
   req1.tv_sec  = 0;
   req1.tv_nsec = 10000000; // 10ms
 
   // 接続
-  while (err != 0) {
-    err = abh3_can_port_init(&canABH3, "can0", 1, 2, 0, 5, 1000);
-    if (err) {
-      printf("port init error: %d\n", err);
-      abh3_can_finish(&canABH3);
-    }
-    else {
-      err = abh3_can_cmd_init(&canABH3);
-      if (err) {
-        printf("cmd init error: %d\n", err);
-        abh3_can_finish(&canABH3);
-      }
-    }
+  err = abh3.port_init((char *)"can0", 1, 2, 0, 5, 1000);
+  if (err) {
+    printf("error: %d\n", err);
+    return err;
   }
 
-  printf("Single Pcket DP0 Send ID: %08lx\n", canABH3.id.singleDP0Send);
-  printf("                 Recv ID: %08lx\n", canABH3.id.singleDP0Recv);
-  printf("Broad Packet Send Resuest ID: %08lx\n", canABH3.id.broadReqSend);
-  printf("             Recv    Base ID: %08lx\n\n", canABH3.id.broadBaseRecv);
-
-
   // エラー解除
-  abh3_can_inSet(&canABH3, 0x80000000, 0xffffffff, &canData);
+  abh3.inSet(0x80000000, 0xffffffff);
   while(1) {
-    abh3_can_reqBRD(&canABH3, canABH3.broadGroup*8+0, &canData);
+    abh3.reqBRD(5*8+0);
     printf("Error: %08x  Alarm: %08x\n", \
-      canData.broad0.error, \
-      canData.broad0.alarm \
+      abh3.getBroad0Error(), \
+      abh3.getBroad0Alarm() \
     );
-    if (canData.broad0.error) {
-      abh3_can_inSet(&canABH3, 0x80000000, 0xffffffff, &canData);
+    if (abh3.getBroad0Error()) {
+      abh3.inSet(0x80000000, 0xffffffff);
     }
     else {
       break;
     }
   }
-  abh3_can_inSet(&canABH3, 0x00000000, 0xffffffff, &canData);
+  abh3.inSet(0x00000000, 0xffffffff);
 
   // サーボON
-  abh3_can_inSet(&canABH3, 0x00003003, 0xffffffff, &canData);
+  abh3.inSet(0x00003003, 0xffffffff);
   for(i=0; i<100; i++) {
     // 指令
-    err = abh3_can_cmd(&canABH3, cnvVel2CAN(100), cnvVel2CAN(-50), &canData);
+    err = abh3.cmd(cnvVel2CAN(100), cnvVel2CAN(-50));
     printf("%10.3f %10.3f %10.3f %10.3f\n",
-      cnvCAN2Vel(canData.singleDP0.fbk.Y), 
-      cnvCAN2Vel(canData.singleDP0.fbk.X),
-      cnvCAN2Vel(canData.singleDP0.fbk.A),
-      cnvCAN2Vel(canData.singleDP0.fbk.B)
+      cnvCAN2Vel(abh3.getSingleDP0FbkY()), 
+      cnvCAN2Vel(abh3.getSingleDP0FbkX()),
+      cnvCAN2Vel(abh3.getSingleDP0FbkA()),
+      cnvCAN2Vel(abh3.getSingleDP0FbkB())
     );
 
     nanosleep(&req1, NULL);
   }
   // サーボOFF
-  abh3_can_inSet(&canABH3, 0x00000000, 0xffffffff, &canData);
+  abh3.inSet(0x00000000, 0xffffffff);
 
   // 切断
-  err = abh3_can_finish(&canABH3);
+  err = abh3.finish();
   if (err) {
     printf("error: %d\n", err);
     return err;

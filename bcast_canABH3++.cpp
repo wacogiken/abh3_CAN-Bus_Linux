@@ -33,7 +33,7 @@
  ******************************************************************************/
 
 /*!****************************************************************************
-@file           single_canABH3.c
+@file           test_canABH3.c
 *******************************************************************************
 @brief          ABH3用CAN サンプルソフト(アプリケーション)
 *******************************************************************************
@@ -52,87 +52,124 @@
 #include <unistd.h>
 #include <math.h>
 
-#include "canABH3.h"
+#include "canABH3++.hpp"
 
 #include <time.h>
 #include <sys/time.h>
-#include <string.h>
 
-  struct timespec req1;
+struct timespec req1;
 
 /******************************************************************************
   アプリケーション・メイン
 ******************************************************************************/
-CAN_ABH3 canABH3;
-CAN_ABH3_DATA canData;
+
+#define broadGroup 5
+canABH3 abh3;
+
+int broadCastLoop(int flag, int cnt, int ms)
+{
+  int err, i, j;
+
+  for(i=0; i<cnt; i++) {
+    for(j=0; j<7; j++) {
+      if (flag) {
+        // 送信ID = ブロードキャスト
+        err = abh3.reqBRDBRD(broadGroup*8+j);
+      }
+      else {
+        // 送信ID = ホストID
+        err = abh3.reqBRD(broadGroup*8+j);
+      }
+      if (err) {
+        printf("error: %d\n", err);
+        return err;
+      }
+      switch(j) {
+      case 0:
+        printf("Error: %08x  Alarm: %08x\n", \
+          abh3.getBroad0Error(), \
+          abh3.getBroad0Alarm() \
+        );
+        break;
+      case 1:
+        printf("control: %08x  in_out: %08x\n", \
+          abh3.getBroad1Control(), \
+          abh3.getBroad1In_Out() \
+        );
+        break; 
+      case 2:
+        printf("velCmdAY: %10.6f  velCmdBX: %10.6f  velFbkAY: %10.6f  velFbkBX: %10.6f\n", \
+          cnvCAN2Vel(abh3.getBroad2VelCmdAY()), \
+          cnvCAN2Vel(abh3.getBroad2VelCmdBX()), \
+          cnvCAN2Vel(abh3.getBroad2VelFbkAY()), \
+          cnvCAN2Vel(abh3.getBroad2VelFbkBX())
+        );
+        break;
+      case 3:
+        printf("curCmdAY: %10.6f  curCmdBX: %10.6f  loadA: %10.6f  loadB: %10.6f\n", \
+          cnvCAN2Cur(abh3.getBroad3CurCmdAY()), \
+          cnvCAN2Cur(abh3.getBroad3CurCmdBX()), \
+          cnvCAN2Load(abh3.getBroad3LoadA()), \
+          cnvCAN2Load(abh3.getBroad3LoadB())
+        );
+        break;
+      case 4:
+        printf("pulseA: %d  pulseB: %d\n", \
+          abh3.getBroad4pulseA(), \
+          abh3.getBroad4pulseB() \
+        );
+        break; 
+      case 5:
+        printf("analog0: %10.6f  analog1: %10.6f  mainVolt: %10.6f  controlVolt: %10.6f\n", \
+          cnvCAN2Analog(abh3.getBroad5Analog0()), \
+          cnvCAN2Analog(abh3.getBroad5Analog1()), \
+          cnvCAN2Volt(abh3.getBroad5MainVolt()), \
+          cnvCAN2Volt(abh3.getBroad5ControlVolt())
+        );
+        break;
+      case 6:
+        printf("monitor0: %10.6f  monitor1: %10.6f\n", \
+          abh3.getBroad6Monitor0(), \
+          abh3.getBroad6Monitor1() \
+        );
+        break; 
+      }
+
+      usleep(ms*1000);
+    }
+    printf("\n");
+  }
+
+  return 0;
+}
 
 int main(int argc, char *argv[])
 {
-  int i, j, err=1;
+  int err;
+  char *sbuf, rbuf[BUFSIZ];
   float f;
 
   // 初期化
+  err = abh3.port_init((char *)"can0", 1, 2, 0, broadGroup, 1000);
+  if (err) {
+    printf("error: %d\n", err);
+    return err;
+  }
+
   req1.tv_sec  = 0;
-  req1.tv_nsec = 10000000; // 10ms
+  req1.tv_nsec = 10000000; // 50ms
 
-  // 接続
-  while (err != 0) {
-    err = abh3_can_port_init(&canABH3, "can0", 1, 2, 0, 5, 1000);
-    if (err) {
-      printf("port init error: %d\n", err);
-      abh3_can_finish(&canABH3);
-    }
-    else {
-      err = abh3_can_cmd_init(&canABH3);
-      if (err) {
-        printf("cmd init error: %d\n", err);
-        abh3_can_finish(&canABH3);
-      }
-    }
+  err = broadCastLoop(0, 1, 10);
+  if (err) {
+    return err;
   }
 
-  printf("Single Pcket DP0 Send ID: %08lx\n", canABH3.id.singleDP0Send);
-  printf("                 Recv ID: %08lx\n", canABH3.id.singleDP0Recv);
-  printf("Broad Packet Send Resuest ID: %08lx\n", canABH3.id.broadReqSend);
-  printf("             Recv    Base ID: %08lx\n\n", canABH3.id.broadBaseRecv);
-
-
-  // エラー解除
-  abh3_can_inSet(&canABH3, 0x80000000, 0xffffffff, &canData);
-  while(1) {
-    abh3_can_reqBRD(&canABH3, canABH3.broadGroup*8+0, &canData);
-    printf("Error: %08x  Alarm: %08x\n", \
-      canData.broad0.error, \
-      canData.broad0.alarm \
-    );
-    if (canData.broad0.error) {
-      abh3_can_inSet(&canABH3, 0x80000000, 0xffffffff, &canData);
-    }
-    else {
-      break;
-    }
+  err = broadCastLoop(1, 1, 10);
+  if (err) {
+    return err;
   }
-  abh3_can_inSet(&canABH3, 0x00000000, 0xffffffff, &canData);
 
-  // サーボON
-  abh3_can_inSet(&canABH3, 0x00003003, 0xffffffff, &canData);
-  for(i=0; i<100; i++) {
-    // 指令
-    err = abh3_can_cmd(&canABH3, cnvVel2CAN(100), cnvVel2CAN(-50), &canData);
-    printf("%10.3f %10.3f %10.3f %10.3f\n",
-      cnvCAN2Vel(canData.singleDP0.fbk.Y), 
-      cnvCAN2Vel(canData.singleDP0.fbk.X),
-      cnvCAN2Vel(canData.singleDP0.fbk.A),
-      cnvCAN2Vel(canData.singleDP0.fbk.B)
-    );
-
-    nanosleep(&req1, NULL);
-  }
-  // サーボOFF
-  abh3_can_inSet(&canABH3, 0x00000000, 0xffffffff, &canData);
-
-  // 切断
-  err = abh3_can_finish(&canABH3);
+  err = abh3.finish();
   if (err) {
     printf("error: %d\n", err);
     return err;

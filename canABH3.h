@@ -40,6 +40,11 @@
 @date           2021.02.26
 @author         T.Furusawa
 @note           ・初版
+
+@date           2021.06.11
+@author         T.Furusawa
+@note           ・V1.2 シングルパケット1に関してコメントアウト
+@note           ・     ブロードキャストパケットのブロードキャストリクエストを追加
 ******************************************************************************/
 
 #ifndef CAN_ABH3_INCLUDED
@@ -71,8 +76,8 @@ typedef struct _canABH3 {
     struct {
         long singleDP0Send; // シングルパケット DP0 送信
         long singleDP0Recv; // シングルパケット DP0 受信
-        long singleDP1Send; // シングルパケット DP0 送信
-        long singleDP1Recv; // シングルパケット DP0 受信
+        long singleDP1Send; // シングルパケット DP1 送信
+        long singleDP1Recv; // シングルパケット DP1 受信
         long broadReqSend;  // ブロードキャストリクエスト 送信
         long broadBaseRecv; // ブロードキャスト 受信
         long multiRecv;     // マルチキャストPGN無し 受信
@@ -111,13 +116,16 @@ typedef union _canABH3Data {
             int16_t X;
         } fbk;
     } singleDP0;
+    // 保留
+    /*
     struct {
         int32_t  pulseA;
         int32_t  pulseB;
     } singleDP1;
+    */
     struct {
-        int32_t abnormal;
-        int32_t warning;
+        int32_t error;
+        int32_t alarm;
     } broad0;
     struct {
         int32_t control;
@@ -214,12 +222,34 @@ float cnvCAN2Analog(short analog);
 */
 float cnvCAN2Volt(short volt);
 
-/*  指令の初期化
+/*  CANと指令の初期化
 @param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
 @return                     エラー状態（0：正常、0以外：異常）
 */
 int abh3_can_init(CAN_ABH3 *abh3Ptr);
 
+/*  CANの初期化
+@param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
+@param[in]      device      CANデバイス名称
+@param[in]      abh3ID      ABH3のID
+@param[in]      hostID      ホスト機器のID (自身のID)
+@param[in]      priority    パケットの優先度 (共通)
+@param[in]      broadGroup  ブロードキャストグループ番号
+@param[in]      timeOut     受信タイムアウト時間[ms]
+@return                     エラー状態（0：正常、0以外：異常）
+*/
+int abh3_can_port_init(CAN_ABH3 *abh3Ptr, char *device, int abh3ID, int hostID, int priority, int broadGroup, int timeOut);
+
+/*  指令の初期化
+@param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
+@return                     エラー状態（0：正常、0以外：異常）
+*/
+int abh3_can_cmd_init(CAN_ABH3 *abh3Ptr);
+
+/*  CANを閉じる
+@param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
+@return                     エラー状態（0：正常、0以外：異常）
+*/
 int abh3_can_finish(CAN_ABH3 *abh3Ptr);
 
 /*  指令の送信（軸別）
@@ -258,12 +288,24 @@ int abh3_can_inSet(CAN_ABH3 *abh3Ptr, long data, long mask, CAN_ABH3_DATA *ptr);
 */
 int abh3_can_inBitSet(CAN_ABH3 *abh3Ptr, char num, char data, CAN_ABH3_DATA *ptr);
 
+/*  指令と入力の送信
+@param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
+@param[in]      cmdAY       A/Y指令値
+@param[in]      cmdBX       B/X指令値
+@param[in]      data        データ値
+@param[in]      mask        マスク値
+@param[in]      ptr         戻り値の構造体へのポインタ
+@return                     エラー状態（0：正常、0以外：異常）
+*/
+int abh3_can_cmdAll(CAN_ABH3 *abh3Ptr, short cmdAY, short cmdBX, long data, long mask, CAN_ABH3_DATA *ptr);
+
+// 保留
 /*  積算値のリクエスト
 @param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
 @param[in]      ptr         戻り値の構造体へのポインタ
 @return                     エラー状態（0：正常、0以外：異常）
 */
-int abh3_can_reqPulse(CAN_ABH3 *abh3Ptr, CAN_ABH3_DATA *ptr);
+// int abh3_can_reqPulse(CAN_ABH3 *abh3Ptr, CAN_ABH3_DATA *ptr);
 
 /*  ブロードキャストパケットのリクエスト
 @param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
@@ -272,6 +314,7 @@ int abh3_can_reqPulse(CAN_ABH3 *abh3Ptr, CAN_ABH3_DATA *ptr);
 @return                     エラー状態（0：正常、0以外：異常）
 */
 int abh3_can_reqBRD(CAN_ABH3 *abh3Ptr, int num, CAN_ABH3_DATA *ptr);
+int abh3_can_reqBRDBRD(CAN_ABH3 *abh3Ptr, int num, CAN_ABH3_DATA *ptr);
 
 /*  シングルパケットのリクエスト
 @param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ

@@ -44,6 +44,11 @@
 @date           2021.04.05
 @author         T.Furusawa
 @note           ・V1.1 シングルパケットのリクエストを修正
+
+@date           2021.06.11
+@author         T.Furusawa
+@note           ・V1.2 シングルパケット1に関してコメントアウト
+@note           ・     ブロードキャストパケットのブロードキャストリクエストを追加
 ******************************************************************************/
 
 /******************************************************************************
@@ -232,34 +237,11 @@ float cnvCAN2Volt(short volt)
 */
 void cnvShort2CAN(char * ptr, short s)
 {
-  unsigned short us;
-
-  us = s;
   ptr[0] = s % 256;
   ptr[1] = s / 256;
 }
 
 //-----------------------------------------------------------------------------------------------------
-int can_send(CAN_ABH3 *abh3Ptr, long id, char *data, int len)
-{
-  struct can_frame frame;
- 
-	memset(&frame, 0, sizeof(frame));
-  frame.can_id = id|CAN_EFF_FLAG;
-  frame.can_dlc = len;
-  memcpy(frame.data, data, len);
-
-	/* send frame */
-	if (write(abh3Ptr->can.socket, &frame, 16) != 16) {
-		printf("Error: write\n");
-		return 1;
-	}
-
-  return 0;
-}
-
-//-----------------------------------------------------------------------------------------------------
-
 int can_open(CAN_ABH3 *abh3Ptr)
 {
   struct ifreq ifr;
@@ -269,7 +251,7 @@ int can_open(CAN_ABH3 *abh3Ptr)
 
   abh3Ptr->can.socket = socket(PF_CAN, SOCK_RAW, CAN_RAW);
   if (abh3Ptr->can.socket < 0) {
-    printf("Error: socket\n");
+    printf("Error: open socket\n");
     return 1;
   }
 
@@ -277,7 +259,7 @@ int can_open(CAN_ABH3 *abh3Ptr)
 	ifr.ifr_name[IFNAMSIZ - 1] = '\0';
 	ifr.ifr_ifindex = if_nametoindex(ifr.ifr_name);
 	if (!ifr.ifr_ifindex) {
-		printf("Error: if_nametoindex\n");
+		printf("Error: open if_nametoindex\n");
 		return 1;
 	}
   
@@ -285,7 +267,7 @@ int can_open(CAN_ABH3 *abh3Ptr)
   addr.can_ifindex = ifr.ifr_ifindex;
 
 	if (bind(abh3Ptr->can.socket, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-    printf("Error: bind\n");
+    printf("Error: open bind\n");
     return 1;
   }
 
@@ -295,9 +277,12 @@ int can_open(CAN_ABH3 *abh3Ptr)
   return 0;
 }
 
+//-----------------------------------------------------------------------------------------------------
 int can_close(CAN_ABH3 *abh3Ptr)
 {
   int err;
+
+  printf("close\n");
 
 	err = close(abh3Ptr->can.socket);
   if (err) {
@@ -308,9 +293,29 @@ int can_close(CAN_ABH3 *abh3Ptr)
   return 0;
 }
 
+//-----------------------------------------------------------------------------------------------------
+int can_send(CAN_ABH3 *abh3Ptr, long id, unsigned char *data, int len)
+{
+  struct can_frame frame;
+ 
+	memset(&frame, 0, sizeof(frame));
+  frame.can_id = id|CAN_EFF_FLAG;
+  frame.can_dlc = len;
+  memcpy(frame.data, data, len);
+
+	/* send frame */
+	if (write(abh3Ptr->can.socket, &frame, 16) != 16) {
+		printf("Error: send write\n");
+		return 1;
+	}
+
+  return 0;
+}
+
+//-----------------------------------------------------------------------------------------------------
 int can_recv(CAN_ABH3 *abh3Ptr, long id, CAN_ABH3_DATA *canData, long tout)
 {
-  int i, ret;
+  int ret;
   struct can_frame frame;
   struct	timeval timeout;
 
@@ -327,10 +332,10 @@ int can_recv(CAN_ABH3 *abh3Ptr, long id, CAN_ABH3_DATA *canData, long tout)
     ret = select(abh3Ptr->can.socket+1, &abh3Ptr->can.rdfs, NULL, NULL, &timeout);
     switch(ret) {
     case 0:
-      printf("Error: time out\n");
+      printf("Error: receive time out\n");
       return 1;
     case -1:
-      perror("select");
+      printf("Error: receive select\n");
       return 2;
     }
 
@@ -345,9 +350,10 @@ int can_recv(CAN_ABH3 *abh3Ptr, long id, CAN_ABH3_DATA *canData, long tout)
   return 0;
 }
 
+//-----------------------------------------------------------------------------------------------------
 int can_recv_NO_PGN(CAN_ABH3 *abh3Ptr, long *id, CAN_ABH3_DATA *canData, long tout)
 {
-  int i, ret;
+  int ret;
   struct can_frame frame;
   struct	timeval timeout;
 
@@ -364,10 +370,10 @@ int can_recv_NO_PGN(CAN_ABH3 *abh3Ptr, long *id, CAN_ABH3_DATA *canData, long to
     ret = select(abh3Ptr->can.socket+1, &abh3Ptr->can.rdfs, NULL, NULL, &timeout);
     switch(ret) {
     case 0:
-      printf("Error: time out\n");
+      printf("Error: receive time out\n");
       return 1;
     case -1:
-      perror("select");
+      printf("Error: receive select\n");
       return 2;
     }
 
@@ -392,7 +398,39 @@ int can_recv_NO_PGN(CAN_ABH3 *abh3Ptr, long *id, CAN_ABH3_DATA *canData, long to
 int abh3_can_init(CAN_ABH3 *abh3Ptr)
 {
   int err;
-  CAN_ABH3_DATA canData;
+
+  // CANの初期化
+  err = abh3_can_port_init(abh3Ptr, abh3Ptr->device, abh3Ptr->abh3ID, abh3Ptr->hostID, abh3Ptr->priority, abh3Ptr->broadGroup, abh3Ptr->timeOut);
+  if (err) {
+    return err;
+  }
+
+  // 指令の初期化
+  err = abh3_can_cmd_init(abh3Ptr);
+
+  return err;
+}
+
+/*  CANの初期化
+@param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
+@param[in]      device      CANデバイス名称
+@param[in]      abh3ID      ABH3のID
+@param[in]      hostID      ホスト機器のID (自身のID)
+@param[in]      priority    パケットの優先度 (共通)
+@param[in]      broadGroup  ブロードキャストグループ番号
+@param[in]      timeout     受信タイムアウト時間[ms]
+@return                     エラー状態（0：正常、0以外：異常）
+*/
+int abh3_can_port_init(CAN_ABH3 *abh3Ptr, char *device, int abh3ID, int hostID, int priority, int broadGroup, int timeOut)
+{
+  int err;
+
+  abh3Ptr->device = device;
+  abh3Ptr->abh3ID = abh3ID;
+  abh3Ptr->hostID = hostID;
+  abh3Ptr->priority = priority;
+  abh3Ptr->broadGroup = broadGroup;
+  abh3Ptr->timeOut = timeOut;
 
   abh3Ptr->pgn = ProprietaryAPGN;
 
@@ -413,15 +451,26 @@ int abh3_can_init(CAN_ABH3 *abh3Ptr)
   abh3Ptr->id.multiDataSend = PRIORITY(abh3Ptr->priority) + DP0 + PDUFORMAT(MultiDataPGN) + DESTINATION(abh3Ptr->abh3ID) + SOURCE(abh3Ptr->hostID);
   abh3Ptr->id.multiDataRecv =                               DP0 + PDUFORMAT(MultiDataPGN) + DESTINATION(abh3Ptr->hostID) + SOURCE(abh3Ptr->abh3ID);
 
+  // CANポートを開く
+  err = can_open(abh3Ptr);
+
+  return err;
+}
+
+/*  指令の初期化
+@param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
+@return                     エラー状態（0：正常、0以外：異常）
+*/
+int abh3_can_cmd_init(CAN_ABH3 *abh3Ptr)
+{
+  int err;
+  CAN_ABH3_DATA canData;
+
   // 指令の初期化
   abh3Ptr->singleDP0.cmdAY = abh3Ptr->singleDP0.cmdBX = abh3Ptr->singleDP0.input = 0;
-  err = can_open(abh3Ptr);
-  if (err) {
-    return err;
-  }
 
   // 指令の送受信
-  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (char *)&(abh3Ptr->singleDP0), 8);
+  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (unsigned char *)&(abh3Ptr->singleDP0), 8);
   if (err) {
     return err;
   }
@@ -430,6 +479,11 @@ int abh3_can_init(CAN_ABH3 *abh3Ptr)
   return err;
 }
 
+
+/*  CANを閉じる
+@param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
+@return                     エラー状態（0：正常、0以外：異常）
+*/
 int abh3_can_finish(CAN_ABH3 *abh3Ptr)
 {
   int err;
@@ -453,7 +507,7 @@ int abh3_can_cmdAY(CAN_ABH3 *abh3Ptr, short cmd, CAN_ABH3_DATA *ptr)
   abh3Ptr->singleDP0.cmdAY = cmd;
   
   // 指令の送受信
-  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (char *)&(abh3Ptr->singleDP0), 8);
+  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (unsigned char *)&(abh3Ptr->singleDP0), 8);
   if (err) {
     return err;
   }
@@ -471,7 +525,7 @@ int abh3_can_cmdBX(CAN_ABH3 *abh3Ptr, short cmd, CAN_ABH3_DATA *ptr)
   abh3Ptr->singleDP0.cmdBX = cmd;
   
   // 指令の送受信
-  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (char *)&(abh3Ptr->singleDP0), 8);
+  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (unsigned char *)&(abh3Ptr->singleDP0), 8);
   if (err) {
     return err;
   }
@@ -497,7 +551,7 @@ int abh3_can_cmd(CAN_ABH3 *abh3Ptr, short cmdAY, short cmdBX, CAN_ABH3_DATA *ptr
   abh3Ptr->singleDP0.cmdBX = cmdBX;
   
   // 指令の送受信
-  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (char *)&(abh3Ptr->singleDP0), 8);
+  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (unsigned char *)&(abh3Ptr->singleDP0), 8);
   if (err) {
     return err;
   }
@@ -522,7 +576,7 @@ int abh3_can_inSet(CAN_ABH3 *abh3Ptr, long data, long mask, CAN_ABH3_DATA *ptr)
   abh3Ptr->singleDP0.input = (abh3Ptr->singleDP0.input & ~mask) | (data & mask);
 
   // 指令の送受信
-  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (char *)&(abh3Ptr->singleDP0), 8);
+  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (unsigned char *)&(abh3Ptr->singleDP0), 8);
   if (err) {
     return err;
   }
@@ -547,7 +601,7 @@ int abh3_can_inBitSet(CAN_ABH3 *abh3Ptr, char num, char data, CAN_ABH3_DATA *ptr
   abh3Ptr->singleDP0.input = (abh3Ptr->singleDP0.input & ~(1 << num)) | (data << num);
 
   // 指令の送受信
-  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (char *)&(abh3Ptr->singleDP0), 8);
+  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (unsigned char *)&(abh3Ptr->singleDP0), 8);
   if (err) {
     return err;
   }
@@ -557,17 +611,48 @@ int abh3_can_inBitSet(CAN_ABH3 *abh3Ptr, char num, char data, CAN_ABH3_DATA *ptr
   return err;
 }
 
+/*  指令と入力の送信
+@param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
+@param[in]      cmdAY       A/Y指令値
+@param[in]      cmdBX       B/X指令値
+@param[in]      data        データ値
+@param[in]      mask        マスク値
+@param[in]      ptr         戻り値の構造体へのポインタ
+@return                     エラー状態（0：正常、0以外：異常）
+*/
+int abh3_can_cmdAll(CAN_ABH3 *abh3Ptr, short cmdAY, short cmdBX, long data, long mask, CAN_ABH3_DATA *ptr)
+{
+  int err;
+
+  // 指令の設定
+  abh3Ptr->singleDP0.cmdAY = cmdAY;
+  abh3Ptr->singleDP0.cmdBX = cmdBX;
+  abh3Ptr->singleDP0.input = (abh3Ptr->singleDP0.input & ~mask) | (data & mask);
+
+  // 指令の送受信
+  err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (unsigned char *)&(abh3Ptr->singleDP0), 8);
+  if (err) {
+    return err;
+  }
+
+  err = can_recv(abh3Ptr, abh3Ptr->id.singleDP0Recv, ptr, 0);
+
+  return err;
+}
+
+// 保留
 /*  積算値のリクエスト
 @param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
 @param[in]      ptr         戻り値の構造体へのポインタ
 @return                     エラー状態（0：正常、0以外：異常）
 */
+/*
 int abh3_can_reqPulse(CAN_ABH3 *abh3Ptr, CAN_ABH3_DATA *ptr)
 {
   int err;
 
   // リクエストの送受信
-  err = can_send(abh3Ptr, abh3Ptr->id.singleDP1Send, (char *)NULL, 0);
+  err = can_send(abh3Ptr, abh3Ptr->id.singleDP1Send, (unsigned char *)NULL, 0);
   if (err) {
     return err;
   }
@@ -576,6 +661,7 @@ int abh3_can_reqPulse(CAN_ABH3 *abh3Ptr, CAN_ABH3_DATA *ptr)
 
   return err;
 }
+*/
 
 /*  ブロードキャストパケットのリクエスト
 @param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
@@ -586,11 +672,28 @@ int abh3_can_reqPulse(CAN_ABH3 *abh3Ptr, CAN_ABH3_DATA *ptr)
 int abh3_can_reqBRD(CAN_ABH3 *abh3Ptr, int num, CAN_ABH3_DATA *ptr)
 {
   int err;
-  char buf[3] = {0x00, 0xff, 0x00};
+  unsigned char buf[3] = {0x00, 0xff, 0x00};
 
   // リクエストの送受信
   buf[0] = num;
   err = can_send(abh3Ptr, abh3Ptr->id.broadReqSend, buf, 3);
+  if (err) {
+    return err;
+  }
+
+  err = can_recv(abh3Ptr, abh3Ptr->id.broadBaseRecv + DESTINATION(num), ptr, 0);
+
+  return err;
+}
+
+int abh3_can_reqBRDBRD(CAN_ABH3 *abh3Ptr, int num, CAN_ABH3_DATA *ptr)
+{
+  int err;
+  unsigned char buf[3] = {0x00, 0xff, 0x00};
+
+  // リクエストの送受信
+  buf[0] = num;
+  err = can_send(abh3Ptr, abh3Ptr->id.broadReqSend | DESTINATION(0xff), buf, 3);
   if (err) {
     return err;
   }
@@ -612,7 +715,7 @@ int abh3_can_reqBRD(CAN_ABH3 *abh3Ptr, int num, CAN_ABH3_DATA *ptr)
 int abh3_can_reqSNG(CAN_ABH3 *abh3Ptr, int num, CAN_ABH3_DATA *ptr)
 {
   int err;
-  char buf[3] = {0x00, 0x00, 0x00};
+  unsigned char buf[3] = {0x00, 0x00, 0x00};
   long id;
 
   // リクエストの送受信
@@ -625,9 +728,11 @@ int abh3_can_reqSNG(CAN_ABH3 *abh3Ptr, int num, CAN_ABH3_DATA *ptr)
   }
 
   switch(num) {
+  /*
   case 0x01:
     id = abh3Ptr->id.singleDP1Recv;
     break;
+  */
   case 0x00:
   default:
     id = abh3Ptr->id.singleDP0Recv;

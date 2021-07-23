@@ -33,7 +33,7 @@
  ******************************************************************************/
 
 /*!****************************************************************************
-@file           test_canABH3.c
+@file           bcast_canABH3.c
 *******************************************************************************
 @brief          ABH3用CAN サンプルソフト(アプリケーション)
 *******************************************************************************
@@ -53,7 +53,6 @@
 #include <math.h>
 
 #include "canABH3.h"
-#include "pack_float.h"
 
 #include <time.h>
 #include <sys/time.h>
@@ -66,18 +65,29 @@ struct timespec req1;
 CAN_ABH3 canABH3;
 CAN_ABH3_DATA canData;
 
-void broadCastLoop(int ms)
+int broadCastLoop(int flag, int cnt, int ms)
 {
-  int i, j;
+  int err, i, j;
 
-  for(i=0; i<1; i++) {
+  for(i=0; i<cnt; i++) {
     for(j=0; j<7; j++) {
-      abh3_can_reqBRD(&canABH3, canABH3.broadGroup*8+j, &canData);
+      if (flag) {
+        // 送信ID = ブロードキャスト
+        err = abh3_can_reqBRDBRD(&canABH3, canABH3.broadGroup*8+j, &canData);
+      }
+      else {
+        // 送信ID = ホストID
+        err = abh3_can_reqBRD(&canABH3, canABH3.broadGroup*8+j, &canData);
+      }
+      if (err) {
+        printf("error: %d\n", err);
+        return err;
+      }
       switch(j) {
       case 0:
-        printf("Abnormal: %08x  Warning: %08x\n", \
-          canData.broad0.abnormal, \
-          canData.broad0.warning \
+        printf("Error: %08x  Alarm: %08x\n", \
+          canData.broad0.error, \
+          canData.broad0.alarm \
         );
         break;
       case 1:
@@ -140,26 +150,21 @@ void broadCastLoop(int ms)
     }
     printf("\n");
   }
+
+  return 0;
 }
 
 int main(int argc, char *argv[])
 {
-  int i, j, ret;
+  int err;
   char *sbuf, rbuf[BUFSIZ];
   float f;
 
   // 初期化
-  canABH3.abh3ID = 1;
-  canABH3.hostID = 2;
-  canABH3.timeOut = 1000;
-  canABH3.device = "can0";
-  canABH3.priority = 0;
-  canABH3.broadGroup = 5;
-
-  ret = abh3_can_init(&canABH3);
-  if (ret) {
-    printf("error: %d\n", ret);
-    return(0);
+  err = abh3_can_port_init(&canABH3, "can0", 1, 2, 0, 5, 1000);
+  if (err) {
+    printf("error: %d\n", err);
+    return err;
   }
 
   req1.tv_sec  = 0;
@@ -167,17 +172,23 @@ int main(int argc, char *argv[])
 
   printf("Single Pcket DP0 Send ID: %08lx\n", canABH3.id.singleDP0Send);
   printf("                 Recv ID: %08lx\n", canABH3.id.singleDP0Recv);
-  printf("Single Pcket DP1 Send ID: %08lx\n", canABH3.id.singleDP1Send);
-  printf("                 Recv ID: %08lx\n", canABH3.id.singleDP1Recv);
   printf("Broad Packet Send Resuest ID: %08lx\n", canABH3.id.broadReqSend);
   printf("             Recv    Base ID: %08lx\n\n", canABH3.id.broadBaseRecv);
 
-  broadCastLoop(10);
+  err = broadCastLoop(0, 1, 10);
+  if (err) {
+    return err;
+  }
 
-  ret = abh3_can_finish(&canABH3);
-  if (ret) {
-    printf("error: %d\n", ret);
-    return(ret);
+  err = broadCastLoop(1, 1, 10);
+  if (err) {
+    return err;
+  }
+
+  err = abh3_can_finish(&canABH3);
+  if (err) {
+    printf("error: %d\n", err);
+    return err;
   }
 
   return 0;
