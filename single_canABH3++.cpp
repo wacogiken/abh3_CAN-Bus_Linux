@@ -40,6 +40,10 @@
 @date           2021.02.26
 @author         T.Furusawa
 @note           ・初版
+
+@date           2023.02.01
+@author         T.Furusawa
+@note           ・CAN新仕様に対応
 ******************************************************************************/
 
 /******************************************************************************
@@ -62,12 +66,9 @@ struct timespec req1;
 /******************************************************************************
   アプリケーション・メイン
 ******************************************************************************/
-// CAN_ABH3 canABH3;
-// CAN_ABH3_DATA canData;
-
 int main(int argc, char *argv[])
 {
-  int i, j, err;
+  int i, j, err=1;
   float f;
 
   canABH3 abh3;
@@ -77,14 +78,24 @@ int main(int argc, char *argv[])
   req1.tv_nsec = 10000000; // 10ms
 
   // 接続
-  err = abh3.port_init((char *)"can0", 1, 2, 0, 5, 1000);
-  if (err) {
-    printf("error: %d\n", err);
-    return err;
+  while (err != 0) {
+    err = abh3.port_init((char *)"can0", 1, 2, 0, 5, 1000);
+    if (err) {
+      printf("port init error: %d\n", err);
+      abh3.finish();
+    }
+    else {
+      err = abh3.cmd_init();
+      if (err) {
+        printf("cmd init error: %d\n", err);
+        abh3.finish();
+      }
+    }
+
   }
 
   // エラー解除
-  abh3.inSet(0x80000000, 0xffffffff);
+  abh3.inSet(0x00000000, 0xffffffff);
   while(1) {
     abh3.reqBRD(5*8+0);
     printf("Error: %08x  Alarm: %08x\n", \
@@ -92,7 +103,7 @@ int main(int argc, char *argv[])
       abh3.getBroad0Alarm() \
     );
     if (abh3.getBroad0Error()) {
-      abh3.inSet(0x80000000, 0xffffffff);
+      abh3.inSet(0x00400000, 0xffffffff);
     }
     else {
       break;
@@ -101,15 +112,14 @@ int main(int argc, char *argv[])
   abh3.inSet(0x00000000, 0xffffffff);
 
   // サーボON
-  abh3.inSet(0x00003003, 0xffffffff);
-  for(i=0; i<100; i++) {
+  abh3.inSet(0x00000303, 0xffffffff);
+  for(i=0; i<200; i++) {
     // 指令
-    err = abh3.cmd(cnvVel2CAN(100), cnvVel2CAN(-50));
-    printf("%10.3f %10.3f %10.3f %10.3f\n",
-      cnvCAN2Vel(abh3.getSingleDP0FbkY()), 
-      cnvCAN2Vel(abh3.getSingleDP0FbkX()),
-      cnvCAN2Vel(abh3.getSingleDP0FbkA()),
-      cnvCAN2Vel(abh3.getSingleDP0FbkB())
+    err = abh3.cmd(cnvVel2CAN(100), cnvVel2CAN(-100));
+    printf("%10.3f %10.3f   %08X\n",
+      cnvCAN2Vel(abh3.getSingleDP0FbkAY()), 
+      cnvCAN2Vel(abh3.getSingleDP0FbkBX()),
+      abh3.getSingleDP0Control()
     );
 
     nanosleep(&req1, NULL);

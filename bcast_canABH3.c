@@ -40,6 +40,10 @@
 @date           2021.02.26
 @author         T.Furusawa
 @note           ・初版
+
+@date           2023.01.31
+@author         T.Furusawa
+@note           ・CAN新仕様に対応
 ******************************************************************************/
 
 /******************************************************************************
@@ -91,9 +95,9 @@ int broadCastLoop(int flag, int cnt, int ms)
         );
         break;
       case 1:
-        printf("control: %08x  in_out: %08x\n", \
-          canData.broad1.control, \
-          canData.broad1.in_out \
+        printf("in_out: %08x  input: %08x\n", \
+          canData.broad1.in_out, \
+          canData.broad1.input \
         );
         break; 
       case 2:
@@ -167,20 +171,20 @@ int main(int argc, char *argv[])
     return err;
   }
 
-  req1.tv_sec  = 0;
-  req1.tv_nsec = 10000000; // 50ms
+  // req1.tv_sec  = 0;
+  // req1.tv_nsec = 10000000; // 50ms
 
   printf("Single Pcket DP0 Send ID: %08lx\n", canABH3.id.singleDP0Send);
   printf("                 Recv ID: %08lx\n", canABH3.id.singleDP0Recv);
   printf("Broad Packet Send Resuest ID: %08lx\n", canABH3.id.broadReqSend);
   printf("             Recv    Base ID: %08lx\n\n", canABH3.id.broadBaseRecv);
 
-  err = broadCastLoop(0, 1, 10);
+  err = broadCastLoop(0, 1, 2);
   if (err) {
     return err;
   }
 
-  err = broadCastLoop(1, 1, 10);
+  err = broadCastLoop(1, 1, 2);
   if (err) {
     return err;
   }

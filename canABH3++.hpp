@@ -22,16 +22,15 @@ public :
   int reqBRDBRD(int num);
   int reqSNG(int num);
 
-  int16_t getSingleDP0FbkY();
-  int16_t getSingleDP0FbkX();
-  int16_t getSingleDP0FbkA();
-  int16_t getSingleDP0FbkB();
+  int16_t getSingleDP0FbkAY();
+  int16_t getSingleDP0FbkBX();
+  int32_t getSingleDP0Control();
 
   int32_t getBroad0Error();
   int32_t getBroad0Alarm();
 
-  int32_t getBroad1Control();
   int32_t getBroad1In_Out();
+  int32_t getBroad1Input();
 
   int16_t getBroad2VelCmdAY();
   int16_t getBroad2VelCmdBX();

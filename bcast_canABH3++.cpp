@@ -40,6 +40,10 @@
 @date           2021.02.26
 @author         T.Furusawa
 @note           ・初版
+
+@date           2023.02.01
+@author         T.Furusawa
+@note           ・CAN新仕様に対応
 ******************************************************************************/
 
 /******************************************************************************
@@ -92,9 +96,9 @@ int broadCastLoop(int flag, int cnt, int ms)
         );
         break;
       case 1:
-        printf("control: %08x  in_out: %08x\n", \
-          abh3.getBroad1Control(), \
-          abh3.getBroad1In_Out() \
+        printf("in_out: %08x  input: %08x\n", \
+          abh3.getBroad1In_Out(), \
+          abh3.getBroad1Input() \
         );
         break; 
       case 2:

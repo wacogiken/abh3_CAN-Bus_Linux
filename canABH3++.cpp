@@ -95,24 +95,19 @@ int canABH3::reqSNG(int num)
   return err;
 }
 
-int16_t canABH3::getSingleDP0FbkY()
+int16_t canABH3::getSingleDP0FbkAY()
 {
-  return this->dt.singleDP0.fbk.Y;
+  return this->dt.singleDP0.fbkAY;
 }
 
-int16_t canABH3::getSingleDP0FbkX()
+int16_t canABH3::getSingleDP0FbkBX()
 {
-  return this->dt.singleDP0.fbk.X;
+  return this->dt.singleDP0.fbkBX;
 }
 
-int16_t canABH3::getSingleDP0FbkA()
+int32_t canABH3::getSingleDP0Control()
 {
-  return this->dt.singleDP0.fbk.A;
-}
-
-int16_t canABH3::getSingleDP0FbkB()
-{
-  return this->dt.singleDP0.fbk.B;
+  return this->dt.singleDP0.control;
 }
 
 int32_t canABH3::getBroad0Error()
@@ -125,14 +120,14 @@ int32_t canABH3::getBroad0Alarm()
   return this->dt.broad0.alarm;
 }
 
-int32_t canABH3::getBroad1Control()
-{
-  return this->dt.broad1.control;
-}
-
 int32_t canABH3::getBroad1In_Out()
 {
   return this->dt.broad1.in_out;
+}
+
+int32_t canABH3::getBroad1Input()
+{
+  return this->dt.broad1.input;
 }
 
 int16_t canABH3::getBroad2VelCmdAY()

@@ -17,3 +17,6 @@ Jetson Xavier NX with Waco Giken CAN-Bus Driver Board
 * __v1.2__(2021/7/23)
     - revise some function
     - add C++ file
+* __v2.0__(2023/1/31)
+    - Compatible with new CAN-Bus protocol specifications
+

@@ -45,6 +45,10 @@
 @author         T.Furusawa
 @note           ・V1.2 シングルパケット1に関してコメントアウト
 @note           ・     ブロードキャストパケットのブロードキャストリクエストを追加
+
+@date           2023.01.31
+@author         T.Furusawa
+@note           ・V2.0 CAN新仕様に対応
 ******************************************************************************/
 
 #ifndef CAN_ABH3_INCLUDED
@@ -94,7 +98,7 @@ typedef struct _canABH3 {
     struct {
         int16_t cmdAY;
         int16_t cmdBX;
-        int32_t input;
+        int32_t operation;
     } singleDP0;
 } CAN_ABH3;
 
@@ -103,33 +107,18 @@ typedef union _canABH3Data {
     struct {
         uint8_t buf[8];
     } raw;
-    union {
-        struct {
-            int16_t AY;
-            int16_t BX;
-            int32_t input;
-        } cmd;
-        struct {
-            int16_t A;
-            int16_t B;
-            int16_t Y;
-            int16_t X;
-        } fbk;
-    } singleDP0;
-    // 保留
-    /*
     struct {
-        int32_t  pulseA;
-        int32_t  pulseB;
-    } singleDP1;
-    */
+        int16_t fbkAY;
+        int16_t fbkBX;
+        int32_t control;
+    } singleDP0;
     struct {
         int32_t error;
         int32_t alarm;
     } broad0;
     struct {
-        int32_t control;
         int32_t in_out;
+        int32_t input;
     } broad1;
     struct {
         int16_t velCmdAY;
@@ -298,14 +287,6 @@ int abh3_can_inBitSet(CAN_ABH3 *abh3Ptr, char num, char data, CAN_ABH3_DATA *ptr
 @return                     エラー状態（0：正常、0以外：異常）
 */
 int abh3_can_cmdAll(CAN_ABH3 *abh3Ptr, short cmdAY, short cmdBX, long data, long mask, CAN_ABH3_DATA *ptr);
-
-// 保留
-/*  積算値のリクエスト
-@param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
-@param[in]      ptr         戻り値の構造体へのポインタ
-@return                     エラー状態（0：正常、0以外：異常）
-*/
-// int abh3_can_reqPulse(CAN_ABH3 *abh3Ptr, CAN_ABH3_DATA *ptr);
 
 /*  ブロードキャストパケットのリクエスト
 @param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ

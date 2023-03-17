@@ -49,6 +49,10 @@
 @author         T.Furusawa
 @note           ・V1.2 シングルパケット1に関してコメントアウト
 @note           ・     ブロードキャストパケットのブロードキャストリクエストを追加
+
+@date           2023.01.31
+@author         T.Furusawa
+@note           ・V2.0 CAN新仕様に対応
 ******************************************************************************/
 
 /******************************************************************************
@@ -467,7 +471,7 @@ int abh3_can_cmd_init(CAN_ABH3 *abh3Ptr)
   CAN_ABH3_DATA canData;
 
   // 指令の初期化
-  abh3Ptr->singleDP0.cmdAY = abh3Ptr->singleDP0.cmdBX = abh3Ptr->singleDP0.input = 0;
+  abh3Ptr->singleDP0.cmdAY = abh3Ptr->singleDP0.cmdBX = abh3Ptr->singleDP0.operation = 0;
 
   // 指令の送受信
   err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (unsigned char *)&(abh3Ptr->singleDP0), 8);
@@ -561,7 +565,7 @@ int abh3_can_cmd(CAN_ABH3 *abh3Ptr, short cmdAY, short cmdBX, CAN_ABH3_DATA *ptr
   return err;
 }
 
-/*  入力の送信（一括）
+/*  操作の送信（一括）
 @param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
 @param[in]      data        データ値
 @param[in]      mask        マスク値
@@ -573,7 +577,7 @@ int abh3_can_inSet(CAN_ABH3 *abh3Ptr, long data, long mask, CAN_ABH3_DATA *ptr)
   int err;
 
   // 指令の設定
-  abh3Ptr->singleDP0.input = (abh3Ptr->singleDP0.input & ~mask) | (data & mask);
+  abh3Ptr->singleDP0.operation = (abh3Ptr->singleDP0.operation & ~mask) | (data & mask);
 
   // 指令の送受信
   err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (unsigned char *)&(abh3Ptr->singleDP0), 8);
@@ -586,7 +590,7 @@ int abh3_can_inSet(CAN_ABH3 *abh3Ptr, long data, long mask, CAN_ABH3_DATA *ptr)
   return err;
 }
 
-/*  入力の送信（ビット）
+/*  操作の送信（ビット）
 @param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
 @param[in]      num         ビット番号(0～31)
 @param[in]      data        設定データ(0～1)
@@ -598,7 +602,7 @@ int abh3_can_inBitSet(CAN_ABH3 *abh3Ptr, char num, char data, CAN_ABH3_DATA *ptr
   int err;
 
   // 指令の設定
-  abh3Ptr->singleDP0.input = (abh3Ptr->singleDP0.input & ~(1 << num)) | (data << num);
+  abh3Ptr->singleDP0.operation = (abh3Ptr->singleDP0.operation & ~(1 << num)) | (data << num);
 
   // 指令の送受信
   err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (unsigned char *)&(abh3Ptr->singleDP0), 8);
@@ -611,7 +615,7 @@ int abh3_can_inBitSet(CAN_ABH3 *abh3Ptr, char num, char data, CAN_ABH3_DATA *ptr
   return err;
 }
 
-/*  指令と入力の送信
+/*  指令と操作の送信
 @param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
 @param[in]      cmdAY       A/Y指令値
 @param[in]      cmdBX       B/X指令値
@@ -627,7 +631,7 @@ int abh3_can_cmdAll(CAN_ABH3 *abh3Ptr, short cmdAY, short cmdBX, long data, long
   // 指令の設定
   abh3Ptr->singleDP0.cmdAY = cmdAY;
   abh3Ptr->singleDP0.cmdBX = cmdBX;
-  abh3Ptr->singleDP0.input = (abh3Ptr->singleDP0.input & ~mask) | (data & mask);
+  abh3Ptr->singleDP0.operation = (abh3Ptr->singleDP0.operation & ~mask) | (data & mask);
 
   // 指令の送受信
   err = can_send(abh3Ptr, abh3Ptr->id.singleDP0Send, (unsigned char *)&(abh3Ptr->singleDP0), 8);
@@ -639,29 +643,6 @@ int abh3_can_cmdAll(CAN_ABH3 *abh3Ptr, short cmdAY, short cmdBX, long data, long
 
   return err;
 }
-
-// 保留
-/*  積算値のリクエスト
-@param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
-@param[in]      ptr         戻り値の構造体へのポインタ
-@return                     エラー状態（0：正常、0以外：異常）
-*/
-/*
-int abh3_can_reqPulse(CAN_ABH3 *abh3Ptr, CAN_ABH3_DATA *ptr)
-{
-  int err;
-
-  // リクエストの送受信
-  err = can_send(abh3Ptr, abh3Ptr->id.singleDP1Send, (unsigned char *)NULL, 0);
-  if (err) {
-    return err;
-  }
-
-  err = can_recv(abh3Ptr, abh3Ptr->id.singleDP1Recv, ptr, 0);
-
-  return err;
-}
-*/
 
 /*  ブロードキャストパケットのリクエスト
 @param[in]      abh3Ptr     CAN_ABH3構造体へのポインタ
@@ -728,11 +709,6 @@ int abh3_can_reqSNG(CAN_ABH3 *abh3Ptr, int num, CAN_ABH3_DATA *ptr)
   }
 
   switch(num) {
-  /*
-  case 0x01:
-    id = abh3Ptr->id.singleDP1Recv;
-    break;
-  */
   case 0x00:
   default:
     id = abh3Ptr->id.singleDP0Recv;

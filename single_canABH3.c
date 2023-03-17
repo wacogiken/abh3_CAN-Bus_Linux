@@ -40,6 +40,10 @@
 @date           2021.02.26
 @author         T.Furusawa
 @note           ・初版
+
+@date           2023.01.31
+@author         T.Furusawa
+@note           ・CAN新仕様に対応
 ******************************************************************************/
 
 /******************************************************************************
@@ -73,7 +77,7 @@ int main(int argc, char *argv[])
 
   // 初期化
   req1.tv_sec  = 0;
-  req1.tv_nsec = 10000000; // 10ms
+  req1.tv_nsec = 10000000; // 100ms
 
   // 接続
   while (err != 0) {
@@ -98,7 +102,7 @@ int main(int argc, char *argv[])
 
 
   // エラー解除
-  abh3_can_inSet(&canABH3, 0x80000000, 0xffffffff, &canData);
+  abh3_can_inSet(&canABH3, 0x00400000, 0xffffffff, &canData);
   while(1) {
     abh3_can_reqBRD(&canABH3, canABH3.broadGroup*8+0, &canData);
     printf("Error: %08x  Alarm: %08x\n", \
@@ -106,7 +110,7 @@ int main(int argc, char *argv[])
       canData.broad0.alarm \
     );
     if (canData.broad0.error) {
-      abh3_can_inSet(&canABH3, 0x80000000, 0xffffffff, &canData);
+      abh3_can_inSet(&canABH3, 0x00400000, 0xffffffff, &canData);
     }
     else {
       break;
@@ -115,15 +119,14 @@ int main(int argc, char *argv[])
   abh3_can_inSet(&canABH3, 0x00000000, 0xffffffff, &canData);
 
   // サーボON
-  abh3_can_inSet(&canABH3, 0x00003003, 0xffffffff, &canData);
-  for(i=0; i<100; i++) {
+  abh3_can_inSet(&canABH3, 0x00007373, 0xffffffff, &canData);
+  for(i=0; i<200; i++) {
     // 指令
-    err = abh3_can_cmd(&canABH3, cnvVel2CAN(100), cnvVel2CAN(-50), &canData);
-    printf("%10.3f %10.3f %10.3f %10.3f\n",
-      cnvCAN2Vel(canData.singleDP0.fbk.Y), 
-      cnvCAN2Vel(canData.singleDP0.fbk.X),
-      cnvCAN2Vel(canData.singleDP0.fbk.A),
-      cnvCAN2Vel(canData.singleDP0.fbk.B)
+    err = abh3_can_cmd(&canABH3, cnvVel2CAN(100), cnvVel2CAN(-100), &canData);
+    printf("%10.3f %10.3f   %08X\n",
+      cnvCAN2Vel(canData.singleDP0.fbkAY), 
+      cnvCAN2Vel(canData.singleDP0.fbkBX),
+      canData.singleDP0.control
     );
 
     nanosleep(&req1, NULL);
